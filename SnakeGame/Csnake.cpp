@@ -99,7 +99,7 @@ void Csnake::BodyUpdate(POINT ptSnakePos)
     this->ptSnakePos = { ptSnakePos };
 }
 
-POINT Csnake::SnakePos()
+POINT Csnake::getSnakePos()
 {
     return ptSnakePos;
 

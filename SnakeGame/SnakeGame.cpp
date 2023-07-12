@@ -28,6 +28,8 @@ BOOL CALLBACK Dialog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam);
 
 // 230711
 void Init(HWND hWnd);
+void Start(HDC hdc);
+void Game(HWND hWnd);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -152,30 +154,28 @@ static bool chkFeed = false;
 static int score;
 string strScore = "";
 
+static bool start = false;
+static bool game = false;
+
+static HDC hdcMem;
+static HBITMAP hBitmap, hBitmapOld;
+static RECT rectClient;
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     RECT rectView = { 10,50,710,750 };
 
-    static HDC hdcMem;
-    static HBITMAP hBitmap, hBitmapOld;
-    static RECT rectClient;
-
     switch (message)
     {
-
-    // 230707
     case WM_CREATE:
     {
-        for (int i = 4; i > 0 ; i--)
+        for (int i = 4; i > 0; i--)
         {
             ptSnakePos = { 35 * i, 35 };
             uSnake = new Csnake(ptSnakePos);
             wSnake.push_back(uSnake);
         }
-        
-        SetTimer(hWnd, timer_ID_1, 80, NULL);
-        
+
         // 먹이(0~19) - 230709
         srand(time(NULL));
 
@@ -191,7 +191,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         hBitmapOld = (HBITMAP)SelectObject(hdcMem, hBitmap);
     }
         break;
-        
+
     case WM_SIZE:
     {
         GetClientRect(hWnd, &rectClient);
@@ -206,10 +206,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_TIMER:
         if (wParam == timer_ID_1)
         {
+            if (start && !game)
+            {
+                game = true;
+            }
+
             // 머리랑 몸통이랑 나눠서 update - 230709
             for (int i = wSnake.size() - 1; i > 0; i--)
             {
-                wSnake[i]->BodyUpdate(wSnake[i - 1]->SnakePos());
+                wSnake[i]->BodyUpdate(wSnake[i - 1]->getSnakePos());
             }
 
             wSnake[0]->HeadUpdate(ckey, &hkey);
@@ -228,7 +233,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 Feed.clear();
                 chkFeed = true;
 
-                uSnake = new Csnake(wSnake[wSnake.size() - 1]->SnakePos());
+                uSnake = new Csnake(wSnake[wSnake.size() - 1]->getSnakePos());
                 wSnake.push_back(uSnake);
                 
                 score++;
@@ -245,7 +250,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // 몸통 충돌 - 230711
             for (int i = wSnake.size() - 1; i > 0; i--)
             {
-                if (wSnake[0]->BodyCollision(wSnake[i]->SnakePos()))
+                if (wSnake[0]->BodyCollision(wSnake[i]->getSnakePos()))
                 {
                     KillTimer(hWnd, timer_ID_1);
                     DialogBox(hInst, MAKEINTRESOURCE(IDD_DIALOG), hWnd, Dialog_Proc);
@@ -276,6 +281,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_KEYDOWN:
+    
+        if (!start)
+        {
+            start = true;
+            SetTimer(hWnd, timer_ID_1, 80, NULL);
+            InvalidateRgn(hWnd, NULL, FALSE);
+            break;
+        }
+
         // 230707
         if (wParam == VK_RIGHT)
         {
@@ -319,30 +333,36 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(hWnd, &ps);
 
-            HBRUSH hbrBackground = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
-            FillRect(hdcMem, &rectClient, hbrBackground);
-            DeleteObject(hbrBackground);
-
-            // 230709
-            wSnake[0]->DrawMap(hdcMem, rectView);
-            for (int i = 0; i < wSnake.size(); i++)
+            if (!start) // 시작화면
             {
-                if (i == 0) chkHead = true;
-                else chkHead = false;
-                wSnake[i]->Draw(hdcMem, chkHead);
+                Start(hdc);
             }
-
-            // 먹이 - 230709
-            if (Feed.size() > 0)
+            else
             {
-                DrawFeed(hdcMem, Feed[0]);
+                HBRUSH hbrBackground = CreateSolidBrush(GetSysColor(COLOR_WINDOW));
+                FillRect(hdcMem, &rectClient, hbrBackground);
+                DeleteObject(hbrBackground);
+
+                // 230709
+                wSnake[0]->DrawMap(hdcMem, rectView);
+                for (int i = 0; i < wSnake.size(); i++)
+                {
+                    if (i == 0) chkHead = true;
+                    else chkHead = false;
+                    wSnake[i]->Draw(hdcMem, chkHead);
+                }
+
+                // 먹이 - 230709
+                if (Feed.size() > 0)
+                {
+                    DrawFeed(hdcMem, Feed[0]);
+                }
+
+                strScore = "SCORE : " + to_string(score);
+                TextOutA(hdcMem, 330, 18, strScore.c_str(), strScore.length());
+
+                BitBlt(hdc, 0, 0, rectClient.right, rectClient.bottom, hdcMem, 0, 0, SRCCOPY);
             }
-
-            strScore = "SCORE : " + to_string(score);
-            TextOutA(hdcMem, 330, 18, strScore.c_str(), strScore.length());
-
-            BitBlt(hdc, 0, 0, rectClient.right, rectClient.bottom, hdcMem, 0, 0, SRCCOPY);
-            
             EndPaint(hWnd, &ps);
         }
         break;
@@ -452,3 +472,28 @@ void Init(HWND hWnd)
     InvalidateRgn(hWnd, NULL, FALSE);
 }
 
+void Start(HDC hdc)
+{
+    SetTextColor(hdc, RGB(75, 132, 69));
+    HFONT hFont = CreateFont(70, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+    HFONT oldFont = (HFONT)SelectObject(hdc, hFont);
+    TextOut(hdc, 150, 300, _T("SNAKE GAME"), 10);
+
+    SetTextColor(hdc, RGB(93, 150, 87));
+    hFont = CreateFont(25, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    oldFont = (HFONT)SelectObject(hdc, hFont);
+    TextOut(hdc, 260, 450, _T("아무 키나 눌러주세요.."), 13);
+
+    hFont = CreateFont(20, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+    oldFont = (HFONT)SelectObject(hdc, hFont);
+    TextOut(hdc, 660, 750, _T("남희영"), 3);
+
+    SelectObject(hdc, oldFont);
+    DeleteObject(hFont);
+}
+
+void Game(HWND hWnd)
+{
+    
+
+}

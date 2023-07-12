@@ -19,7 +19,7 @@ public:
 	void DrawMap(HDC hdc, RECT rectView);
 	void HeadUpdate(int ckey, int *hkey);
 	void BodyUpdate(POINT ptSnakePos);
-	POINT SnakePos();
+	POINT getSnakePos();
 	BOOL FeedCollision(POINT ptFeedPos);
 	BOOL MapCollision(RECT rectView);
 	BOOL BodyCollision(POINT ptBodyPos);
