@@ -29,7 +29,6 @@ BOOL CALLBACK Dialog_Proc(HWND hDlg, UINT iMsg, WPARAM wParam, LPARAM lParam);
 // 230711
 void Init(HWND hWnd);
 void Start(HDC hdc);
-void Game(HWND hWnd);
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -490,10 +489,4 @@ void Start(HDC hdc)
 
     SelectObject(hdc, oldFont);
     DeleteObject(hFont);
-}
-
-void Game(HWND hWnd)
-{
-    
-
 }
